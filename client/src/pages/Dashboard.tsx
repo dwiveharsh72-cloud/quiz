@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import DailyChallenge from "@/components/DailyChallenge";
 import CalendarHeatmap from "@/components/CalendarHeatmap";
 import StreakCounter from "@/components/StreakCounter";
@@ -8,6 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { BookOpen, Target, TrendingUp } from "lucide-react";
+import { useFarmerStats, useDailyChallenge, useSubmitQuiz } from "@/hooks/useApi";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Mock data - TODO: Replace with real data from API
 const mockFarmerData = {
@@ -49,24 +52,59 @@ const mockCalendarData = [
 
 export default function Dashboard() {
   const [dailyCompleted, setDailyCompleted] = useState(false);
-  const [userCoins, setUserCoins] = useState(mockFarmerData.totalCoins);
+  const [, setLocation] = useLocation();
+  
+  // API hooks
+  const { data: farmerStats, isLoading: statsLoading } = useFarmerStats();
+  const { data: dailyChallenge, isLoading: challengeLoading } = useDailyChallenge();
+  const submitQuizMutation = useSubmitQuiz();
   
   const handleDailyComplete = (coinsEarned: number) => {
-    setDailyCompleted(true);
-    setUserCoins(prev => prev + coinsEarned);
-    console.log('Daily challenge completed! Coins earned:', coinsEarned);
+    if (dailyChallenge) {
+      submitQuizMutation.mutate({
+        questionIds: [dailyChallenge.id],
+        answers: { [dailyChallenge.id]: 'submitted' }, // This will be handled by the quiz component
+        sessionType: 'daily'
+      });
+    }
   };
   
   const navigateToQuiz = () => {
-    console.log('Navigate to quiz page');
+    setLocation('/quiz');
   };
   
   const progressToNextLevel = () => {
+    if (!farmerStats) return 0;
     const thresholds = { pupil: 500, specialist: 2000, master: Infinity };
-    const currentThreshold = thresholds[mockFarmerData.level];
+    const currentThreshold = thresholds[farmerStats.level as keyof typeof thresholds];
     if (currentThreshold === Infinity) return 100;
-    return Math.min((userCoins / currentThreshold) * 100, 100);
+    return Math.min((farmerStats.totalCoins / currentThreshold) * 100, 100);
   };
+
+  if (statsLoading) {
+    return (
+      <div className="pb-20 min-h-screen bg-background">
+        <div className="bg-primary text-primary-foreground p-4">
+          <div className="max-w-4xl mx-auto">
+            <Skeleton className="h-8 w-48 mb-2 bg-primary-foreground/20" />
+            <Skeleton className="h-4 w-64 mb-4 bg-primary-foreground/20" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {[1, 2, 3].map(i => (
+                <Skeleton key={i} className="h-24 bg-primary-foreground/20" />
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="max-w-4xl mx-auto p-4 space-y-6">
+          <Skeleton className="h-64" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Skeleton className="h-48" />
+            <Skeleton className="h-48" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="pb-20 min-h-screen bg-background" data-testid="dashboard">
@@ -79,8 +117,8 @@ export default function Dashboard() {
               <p className="text-primary-foreground/80">Your Biosecurity Learning Platform</p>
             </div>
             <div className="flex items-center gap-4">
-              <CoinDisplay coins={userCoins} className="text-primary-foreground" />
-              <LevelBadge level={mockFarmerData.level} />
+              <CoinDisplay coins={farmerStats?.totalCoins || 0} className="text-primary-foreground" />
+              <LevelBadge level={(farmerStats?.level as any) || 'pupil'} />
             </div>
           </div>
           
@@ -91,15 +129,15 @@ export default function Dashboard() {
                   <Target className="h-5 w-5" />
                   <span className="font-medium">Accuracy</span>
                 </div>
-                <div className="text-2xl font-bold">{mockFarmerData.accuracy}%</div>
-                <p className="text-sm text-primary-foreground/70">{mockFarmerData.correctAnswers}/{mockFarmerData.totalQuizzes} correct</p>
+                <div className="text-2xl font-bold">{farmerStats?.accuracy || 0}%</div>
+                <p className="text-sm text-primary-foreground/70">{farmerStats?.correctAnswers || 0}/{farmerStats?.totalQuizzes || 0} correct</p>
               </CardContent>
             </Card>
             
             <Card className="bg-primary-foreground/10 border-primary-foreground/20">
               <CardContent className="p-4">
                 <StreakCounter 
-                  streak={mockFarmerData.currentStreak} 
+                  streak={farmerStats?.currentStreak || 0} 
                   className="text-primary-foreground" 
                 />
               </CardContent>
@@ -125,11 +163,15 @@ export default function Dashboard() {
       <div className="max-w-4xl mx-auto p-4 space-y-6">
         {/* Daily Challenge */}
         <section data-testid="daily-challenge-section">
-          <DailyChallenge 
-            question={mockDailyQuestion}
-            isCompleted={dailyCompleted}
+          {challengeLoading ? (
+            <Skeleton className="h-64" />
+          ) : dailyChallenge ? (
+            <DailyChallenge 
+              question={dailyChallenge}
+              isCompleted={dailyChallenge.isCompleted}
             onComplete={handleDailyComplete}
           />
+          ) : null}
         </section>
         
         {/* Quick Actions */}
@@ -167,7 +209,7 @@ export default function Dashboard() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm">Current Streak</span>
-                  <span className="font-semibold">{mockFarmerData.currentStreak} days</span>
+                  <span className="font-semibold">{farmerStats?.currentStreak || 0} days</span>
                 </div>
               </div>
             </CardContent>
@@ -178,7 +220,7 @@ export default function Dashboard() {
         <section data-testid="calendar-section">
           <CalendarHeatmap 
             data={mockCalendarData} 
-            currentStreak={mockFarmerData.currentStreak} 
+            currentStreak={farmerStats?.currentStreak || 0} 
           />
         </section>
       </div>

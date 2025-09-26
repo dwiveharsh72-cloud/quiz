@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -7,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import QuizQuestion from "@/components/QuizQuestion";
 import CoinDisplay from "@/components/CoinDisplay";
 import { BookOpen, Play, RotateCcw, CheckCircle } from "lucide-react";
+import { useGenerateQuiz, useSubmitQuiz } from "@/hooks/useApi";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Mock quiz questions - TODO: Replace with Gemini AI generated questions
 const mockQuestions = [
@@ -59,34 +62,58 @@ type QuizState = 'setup' | 'active' | 'completed';
 export default function Quiz() {
   const [quizState, setQuizState] = useState<QuizState>('setup');
   const [numQuestions, setNumQuestions] = useState([3]);
+  const [category, setCategory] = useState<string>('mixed');
   const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [questions, setQuestions] = useState<any[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [score, setScore] = useState(0);
   const [coinsEarned, setCoinsEarned] = useState(0);
+  const [, setLocation] = useLocation();
+  
+  // API hooks
+  const generateQuizMutation = useGenerateQuiz();
+  const submitQuizMutation = useSubmitQuiz();
   
   const startQuiz = () => {
-    setQuizState('active');
-    setCurrentQuestion(0);
-    setAnswers({});
-    setScore(0);
-    setCoinsEarned(0);
+    const options = {
+      numQuestions: numQuestions[0],
+      ...(category !== 'mixed' && { category })
+    };
+    
+    generateQuizMutation.mutate(options, {
+      onSuccess: (data) => {
+        setQuestions(data.questions);
+        setQuizState('active');
+        setCurrentQuestion(0);
+        setAnswers({});
+        setScore(0);
+        setCoinsEarned(0);
+      }
+    });
   };
   
   const handleAnswer = (selectedAnswer: string, isCorrect: boolean) => {
-    const questionId = mockQuestions[currentQuestion].id;
+    const questionId = questions[currentQuestion].id;
     setAnswers(prev => ({ ...prev, [questionId]: selectedAnswer }));
-    
-    if (isCorrect) {
-      setScore(prev => prev + 1);
-      setCoinsEarned(prev => prev + 10); // +10 coins per correct answer
-    }
     
     // Auto-advance after 2 seconds
     setTimeout(() => {
       if (currentQuestion < numQuestions[0] - 1) {
         setCurrentQuestion(prev => prev + 1);
       } else {
-        setQuizState('completed');
+        // Submit quiz
+        const finalAnswers = { ...answers, [questionId]: selectedAnswer };
+        submitQuizMutation.mutate({
+          questionIds: questions.map(q => q.id),
+          answers: finalAnswers,
+          sessionType: 'practice'
+        }, {
+          onSuccess: (data) => {
+            setScore(data.score);
+            setCoinsEarned(data.coinsEarned);
+            setQuizState('completed');
+          }
+        });
       }
     }, 2000);
   };
@@ -97,6 +124,7 @@ export default function Quiz() {
     setAnswers({});
     setScore(0);
     setCoinsEarned(0);
+    setQuestions([]);
   };
   
   const accuracy = numQuestions[0] > 0 ? Math.round((score / numQuestions[0]) * 100) : 0;
@@ -146,7 +174,7 @@ export default function Quiz() {
               {/* Quiz Categories */}
               <div className="space-y-3">
                 <label className="text-sm font-medium">Focus Area</label>
-                <Select defaultValue="mixed">
+                <Select value={category} onValueChange={setCategory}>
                   <SelectTrigger data-testid="category-selector">
                     <SelectValue />
                   </SelectTrigger>
@@ -174,12 +202,22 @@ export default function Quiz() {
               {/* Start Button */}
               <Button 
                 onClick={startQuiz} 
+                disabled={generateQuizMutation.isPending}
                 className="w-full" 
                 size="lg"
                 data-testid="start-quiz-button"
               >
+                {generateQuizMutation.isPending ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                    Generating Quiz...
+                  </>
+                ) : (
+                  <>
                 <Play className="h-5 w-5 mr-2" />
                 Start Quiz
+                  </>
+                )}
               </Button>
             </CardContent>
           </Card>
@@ -189,6 +227,18 @@ export default function Quiz() {
   }
   
   if (quizState === 'active') {
+    if (questions.length === 0) {
+      return (
+        <div className="pb-20 min-h-screen bg-background flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-lg font-medium">Generating your personalized quiz...</p>
+            <p className="text-sm text-muted-foreground mt-2">This may take a few moments</p>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="pb-20 min-h-screen bg-background" data-testid="quiz-active">
         {/* Header */}
@@ -214,7 +264,7 @@ export default function Quiz() {
         {/* Question */}
         <div className="max-w-4xl mx-auto p-4">
           <QuizQuestion 
-            question={mockQuestions[currentQuestion]}
+            question={questions[currentQuestion]}
             onAnswer={handleAnswer}
           />
         </div>
@@ -243,7 +293,7 @@ export default function Quiz() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-3 gap-4 text-center">
-              <div>
+              {questions.map((question, index) => {
                 <div className="text-2xl font-bold text-primary">{score}</div>
                 <div className="text-sm text-muted-foreground">Correct</div>
               </div>
@@ -303,7 +353,7 @@ export default function Quiz() {
             <RotateCcw className="h-4 w-4 mr-2" />
             Take Another Quiz
           </Button>
-          <Button onClick={() => console.log('Navigate to dashboard')} data-testid="back-dashboard-button">
+          <Button onClick={() => setLocation('/')} data-testid="back-dashboard-button">
             Back to Dashboard
           </Button>
         </div>

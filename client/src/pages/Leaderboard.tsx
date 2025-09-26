@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import CoinDisplay from "@/components/CoinDisplay";
 import LevelBadge from "@/components/LevelBadge";
 import { Trophy, Medal, Award, Crown } from "lucide-react";
+import { useNationalLeaderboard, useStateLeaderboard, useFarmerRanking } from "@/hooks/useApi";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Mock leaderboard data - TODO: Replace with real API data
 const mockNationalData = [
@@ -48,6 +50,11 @@ const currentUserId = "11"; // Mock current user
 export default function Leaderboard() {
   const [selectedState, setSelectedState] = useState("Karnataka");
   
+  // API hooks
+  const { data: nationalData, isLoading: nationalLoading } = useNationalLeaderboard();
+  const { data: stateData, isLoading: stateLoading } = useStateLeaderboard(selectedState);
+  const { data: farmerRanking, isLoading: rankingLoading } = useFarmerRanking();
+  
   const getRankIcon = (rank: number) => {
     if (rank === 1) return <Crown className="h-5 w-5 text-yellow-500" />;
     if (rank === 2) return <Medal className="h-5 w-5 text-gray-400" />;
@@ -62,7 +69,7 @@ export default function Leaderboard() {
     return "bg-muted text-muted-foreground";
   };
   
-  const isCurrentUser = (userId: string) => userId === currentUserId;
+  const isCurrentUser = (userId: string) => userId === 'farmer123'; // Mock current user
   
   const renderLeaderboardItem = (user: any, rank: number, showState = false) => (
     <div
@@ -105,6 +112,22 @@ export default function Leaderboard() {
     </div>
   );
 
+  if (nationalLoading && stateLoading && rankingLoading) {
+    return (
+      <div className="pb-20 min-h-screen bg-background">
+        <div className="bg-primary text-primary-foreground p-4">
+          <div className="max-w-4xl mx-auto">
+            <Skeleton className="h-8 w-48 mb-2 bg-primary-foreground/20" />
+            <Skeleton className="h-4 w-64 bg-primary-foreground/20" />
+          </div>
+        </div>
+        <div className="max-w-4xl mx-auto p-4 space-y-6">
+          <Skeleton className="h-96" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="pb-20 min-h-screen bg-background" data-testid="leaderboard-page">
       {/* Header */}
@@ -133,8 +156,14 @@ export default function Leaderboard() {
               </CardHeader>
               <CardContent className="p-0">
                 <div className="space-y-2 p-4">
-                  {mockNationalData.map((user, index) => 
+                  {nationalLoading ? (
+                    Array.from({ length: 10 }).map((_, i) => (
+                      <Skeleton key={i} className="h-16" />
+                    ))
+                  ) : (
+                    nationalData?.leaderboard?.map((user: any, index: number) => 
                     renderLeaderboardItem(user, index + 1, true)
+                    ) || []
                   )}
                 </div>
               </CardContent>
@@ -165,8 +194,14 @@ export default function Leaderboard() {
               </CardHeader>
               <CardContent className="p-0">
                 <div className="space-y-2 p-4">
-                  {mockStateData[selectedState as keyof typeof mockStateData]?.map((user, index) => 
+                  {stateLoading ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <Skeleton key={i} className="h-16" />
+                    ))
+                  ) : (
+                    stateData?.leaderboard?.map((user: any, index: number) => 
                     renderLeaderboardItem(user, index + 1, false)
+                    ) || []
                   ) || (
                     <div className="text-center py-8 text-muted-foreground">
                       No data available for {selectedState}
@@ -185,14 +220,23 @@ export default function Leaderboard() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {rankingLoading ? (
+                <>
+                  <Skeleton className="h-20" />
+                  <Skeleton className="h-20" />
+                </>
+              ) : (
+                <>
               <div className="text-center p-4 bg-muted/50 rounded-lg">
-                <div className="text-2xl font-bold text-primary mb-1">#247</div>
+                <div className="text-2xl font-bold text-primary mb-1">#{farmerRanking?.nationalRank || 'N/A'}</div>
                 <div className="text-sm text-muted-foreground">National Rank</div>
               </div>
               <div className="text-center p-4 bg-muted/50 rounded-lg">
-                <div className="text-2xl font-bold text-primary mb-1">#2</div>
-                <div className="text-sm text-muted-foreground">Karnataka Rank</div>
+                <div className="text-2xl font-bold text-primary mb-1">#{farmerRanking?.stateRank || 'N/A'}</div>
+                <div className="text-sm text-muted-foreground">{selectedState} Rank</div>
               </div>
+                </>
+              )}
             </div>
             <div className="mt-4 p-3 bg-primary/5 rounded-lg border border-primary/20">
               <p className="text-sm text-center">

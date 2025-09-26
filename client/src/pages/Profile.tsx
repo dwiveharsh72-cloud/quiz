@@ -6,6 +6,8 @@ import LevelBadge from "@/components/LevelBadge";
 import FarmIcon from "@/components/FarmIcon";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { User, MapPin, Phone, Award, Target, Flame } from "lucide-react";
+import { useFarmerProfile, useFarmerStats } from "@/hooks/useApi";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Mock farmer profile data - TODO: Replace with real data
 const mockProfile = {
@@ -37,17 +39,50 @@ const achievements = [
 ];
 
 export default function Profile() {
+  // API hooks
+  const { data: farmerProfile, isLoading: profileLoading } = useFarmerProfile();
+  const { data: farmerStats, isLoading: statsLoading } = useFarmerStats();
+  
+  const isLoading = profileLoading || statsLoading;
+  
   const getProgressToNextLevel = () => {
+    if (!farmerStats) return 0;
     const thresholds = { pupil: 500, specialist: 2000, master: Infinity };
-    const currentThreshold = thresholds[mockProfile.level];
+    const currentThreshold = thresholds[farmerStats.level as keyof typeof thresholds];
     if (currentThreshold === Infinity) return 100;
-    return Math.min((mockProfile.totalCoins / currentThreshold) * 100, 100);
+    return Math.min((farmerStats.totalCoins / currentThreshold) * 100, 100);
   };
 
   const getNextLevelName = () => {
-    return mockProfile.level === "pupil" ? "Specialist" : 
-           mockProfile.level === "specialist" ? "Master" : "Max Level";
+    if (!farmerStats) return "Specialist";
+    return farmerStats.level === "pupil" ? "Specialist" : 
+           farmerStats.level === "specialist" ? "Master" : "Max Level";
   };
+
+  if (isLoading) {
+    return (
+      <div className="pb-20 min-h-screen bg-background">
+        <div className="bg-primary text-primary-foreground p-4">
+          <div className="max-w-4xl mx-auto">
+            <Skeleton className="h-8 w-48 mb-4 bg-primary-foreground/20" />
+            <Skeleton className="h-32 bg-primary-foreground/20" />
+          </div>
+        </div>
+        <div className="max-w-4xl mx-auto p-4 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map(i => (
+              <Skeleton key={i} className="h-24" />
+            ))}
+          </div>
+          <Skeleton className="h-48" />
+          <Skeleton className="h-64" />
+        </div>
+      </div>
+    );
+  }
+
+  const farmer = farmerProfile?.farmer;
+  const stats = farmerStats;
 
   return (
     <div className="pb-20 min-h-screen bg-background" data-testid="profile-page">
@@ -62,32 +97,32 @@ export default function Profile() {
               <div className="flex items-start gap-4">
                 <Avatar className="h-16 w-16">
                   <AvatarFallback className="bg-primary text-primary-foreground text-xl font-bold">
-                    {mockProfile.name.split(' ').map(n => n[0]).join('')}
+                    {farmer?.id?.slice(0, 2).toUpperCase() || 'FA'}
                   </AvatarFallback>
                 </Avatar>
                 
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
-                    <h2 className="text-xl font-bold" data-testid="farmer-name">{mockProfile.name}</h2>
-                    <LevelBadge level={mockProfile.level} />
+                    <h2 className="text-xl font-bold" data-testid="farmer-name">Farmer{farmer?.id?.slice(-3) || '123'}</h2>
+                    <LevelBadge level={(stats?.level as any) || 'pupil'} />
                   </div>
                   
                   <div className="flex items-center gap-4 text-sm text-primary-foreground/80 mb-3">
                     <div className="flex items-center gap-1">
                       <Phone className="h-4 w-4" />
-                      <span>{mockProfile.phone}</span>
+                      <span>{farmer?.phone || '+91-XXXXXXXXXX'}</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <MapPin className="h-4 w-4" />
-                      <span>{mockProfile.region}</span>
+                      <span>{farmer?.region || 'Karnataka'}</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <FarmIcon animalType={mockProfile.farmType} className="h-4 w-4" />
-                      <span>{mockProfile.totalAnimals} {mockProfile.farmType}s</span>
+                      <FarmIcon animalType="pig" className="h-4 w-4" />
+                      <span>Mixed Farm</span>
                     </div>
                   </div>
                   
-                  <CoinDisplay coins={mockProfile.totalCoins} className="text-primary-foreground" />
+                  <CoinDisplay coins={stats?.totalCoins || 0} className="text-primary-foreground" />
                 </div>
               </div>
             </CardContent>
@@ -102,10 +137,10 @@ export default function Profile() {
           <Card>
             <CardContent className="p-4 text-center">
               <Target className="h-8 w-8 mx-auto mb-2 text-primary" />
-              <div className="text-2xl font-bold">{mockProfile.accuracy}%</div>
+              <div className="text-2xl font-bold">{stats?.accuracy || 0}%</div>
               <div className="text-sm text-muted-foreground">Accuracy</div>
               <div className="text-xs text-muted-foreground mt-1">
-                {mockProfile.correctAnswers}/{mockProfile.totalQuizzes} correct
+                {stats?.correctAnswers || 0}/{stats?.totalQuizzes || 0} correct
               </div>
             </CardContent>
           </Card>
@@ -113,10 +148,10 @@ export default function Profile() {
           <Card>
             <CardContent className="p-4 text-center">
               <Flame className="h-8 w-8 mx-auto mb-2 text-streak" />
-              <div className="text-2xl font-bold">{mockProfile.currentStreak}</div>
+              <div className="text-2xl font-bold">{stats?.currentStreak || 0}</div>
               <div className="text-sm text-muted-foreground">Current Streak</div>
               <div className="text-xs text-muted-foreground mt-1">
-                Best: {mockProfile.longestStreak} days
+                Best: {stats?.longestStreak || 0} days
               </div>
             </CardContent>
           </Card>
@@ -124,10 +159,10 @@ export default function Profile() {
           <Card>
             <CardContent className="p-4 text-center">
               <Award className="h-8 w-8 mx-auto mb-2 text-primary" />
-              <div className="text-2xl font-bold">#{mockProfile.nationalRank}</div>
+              <div className="text-2xl font-bold">#{stats?.nationalRank || 'N/A'}</div>
               <div className="text-sm text-muted-foreground">National Rank</div>
               <div className="text-xs text-muted-foreground mt-1">
-                #{mockProfile.stateRank} in {mockProfile.region}
+                #{stats?.stateRank || 'N/A'} in {farmer?.region || 'Karnataka'}
               </div>
             </CardContent>
           </Card>
@@ -135,10 +170,10 @@ export default function Profile() {
           <Card>
             <CardContent className="p-4 text-center">
               <User className="h-8 w-8 mx-auto mb-2 text-primary" />
-              <div className="text-2xl font-bold">{mockProfile.totalQuizzes}</div>
+              <div className="text-2xl font-bold">{stats?.totalQuizzes || 0}</div>
               <div className="text-sm text-muted-foreground">Total Quizzes</div>
               <div className="text-xs text-muted-foreground mt-1">
-                Since {new Date(mockProfile.joinDate).toLocaleDateString()}
+                Since {farmer?.createdAt ? new Date(farmer.createdAt).toLocaleDateString() : 'Recently'}
               </div>
             </CardContent>
           </Card>
@@ -154,10 +189,10 @@ export default function Profile() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="font-medium">Current Level</span>
-                  <LevelBadge level={mockProfile.level} />
+                  <LevelBadge level={(stats?.level as any) || 'pupil'} />
                 </div>
                 
-                {mockProfile.level !== "master" && (
+                {stats?.level !== "master" && (
                   <>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Progress to {getNextLevelName()}</span>
@@ -165,15 +200,15 @@ export default function Profile() {
                     </div>
                     <Progress value={getProgressToNextLevel()} className="h-2" />
                     <div className="text-xs text-muted-foreground">
-                      {mockProfile.level === "pupil" 
-                        ? `${500 - mockProfile.totalCoins} more coins to reach Specialist`
-                        : `${2000 - mockProfile.totalCoins} more coins to reach Master`
+                      {stats?.level === "pupil" 
+                        ? `${500 - (stats?.totalCoins || 0)} more coins to reach Specialist`
+                        : `${2000 - (stats?.totalCoins || 0)} more coins to reach Master`
                       }
                     </div>
                   </>
                 )}
                 
-                {mockProfile.level === "master" && (
+                {stats?.level === "master" && (
                   <div className="text-center py-4">
                     <div className="text-lg font-semibold text-primary mb-2">🏆 Master Level Achieved!</div>
                     <p className="text-sm text-muted-foreground">You've reached the highest level. Keep learning to maintain your expertise!</p>
