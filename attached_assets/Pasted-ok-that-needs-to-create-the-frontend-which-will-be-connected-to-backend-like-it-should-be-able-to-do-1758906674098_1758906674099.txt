@@ -1,0 +1,214 @@
+ok that needs to create the frontend which will be connected to backend like it should be able to do so and we will use react and javascript 
+and my schema is like this take the faremer specific things like thing s and enter to that promt leave the gov and vet thing 
+import mongoose, { Schema } from "mongoose";
+import { db } from "../db/databsename.js";
+
+const farmerSchema = new Schema({
+  id: { type: String, required: true, unique: true },
+  phone: { type: String, required: true, trim: true, unique: true },
+  region: { type: String, required: true, trim: true },
+  isVerified: { type: Boolean, default: true },
+  latitude: { type: Number },
+  longitude: { type: Number },
+});
+
+const veterinarianSchema = new Schema({
+  phone: { type: String, required: true, trim: true, unique: true },
+  id: { type: String, required: true, unique: true },
+  region: { type: String, required: true, trim: true },
+  veterinarianLicenseID: {
+    type: String,
+    required: true,
+    trim: true,
+    unique: true,
+  },
+  isVerified: { type: Boolean, default: true },
+  latitude: { type: Number },
+  longitude: { type: Number },
+});
+
+const governmentSchema = new Schema({
+  phone: { type: String, required: true, trim: true, unique: true },
+  id: { type: String, required: true, unique: true },
+  region: { type: String, required: true, trim: true },
+  governmentOfficialId: {
+    type: String,
+    required: true,
+    trim: true,
+    unique: true,
+  },
+  isVerified: { type: Boolean, default: true },
+  latitude: { type: Number },
+  longitude: { type: Number },
+});
+
+const conversationSchema = new Schema({
+  id: { type: String, required: true, unique: true },
+  conversation: {
+    type: [
+      {
+        role: { type: String, required: true },
+        content: { type: String, required: true },
+        type: { type: String, default: "text" },
+      },
+    ],
+    default: [],
+  },
+});
+
+const diseaseSchema = new Schema({
+  name: { type: String, required: true },
+  noOfAnimals: { type: Number, required: true, default: 0 },
+  noOfAnimalsDied: { type: Number, required: true, default: 0 },
+  precautionTaken: { type: String, required: true },
+});
+
+const newbornSchema = new Schema({
+  birthDate: { type: Date, required: true },
+  measuresTaken: { type: String },
+});
+
+const pregnancySchema = new Schema({
+  startDate: { type: Date, required: true },
+  measuresTaken: { type: String },
+});
+
+const reproductionSchema = new Schema({
+  pregnancies: { type: [pregnancySchema], default: [] },
+  newborns: { type: [newbornSchema], default: [] },
+});
+
+const animalGroupSchema = new Schema({
+  id: { type: String, required: true },
+  group_id: { type: String, required: true, unique: true },
+  groupName: { type: String, required: true, unique: true },
+  animalType: { type: String, required: true },
+  breedType: { type: String, required: true },
+  totalAnimals: { type: Number, required: true, default: 0 },
+  vaccinatedCount: { type: Number, default: 0 },
+  notVaccinatedCount: { type: Number, default: 0 },
+  ageRange: {
+    min: { type: Number, required: true, default: 0 },
+    max: { type: Number, required: true, default: 0 },
+  },
+  diseases: { type: [diseaseSchema], default: [] },
+  reproduction: { type: reproductionSchema, default: {} },
+  createdAt: { type: Date, default: Date.now },
+});
+
+const diseaseSchemaSummary = new Schema({
+  name: { type: String, required: true },
+  noOfAnimals: { type: Number, required: true, default: 0 },
+  noOfAnimalsDied: { type: Number, required: true, default: 0 },
+});
+
+const summarySchema = new Schema({
+  id: { type: String, required: true, unique: true },
+  totalAnimals: { type: Number, required: true, default: 0 },
+  totalAnimalsVaccinated: { type: Number, required: true, default: 0 },
+  diseases: { type: [diseaseSchemaSummary], default: [] },
+  riskLevel: { type: String, required: true },
+  timestamp: { type: Date, default: Date.now },
+});
+
+const vaccinationTaskSchema = new Schema({
+  id: { type: String, required: true },
+  group_id: { type: String, required: true },
+  category: { type: String, required: true },
+  animals_to_vaccinate: { type: Number, required: true },
+  description_en: { type: String, required: true },
+  description_local: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now },
+  dueDate: { type: Date },
+});
+
+const diseaseTaskSchema = new Schema({
+  id: { type: String, required: true },
+  group_id: { type: String, required: true },
+  category: { type: String, required: true },
+  disease_name: { type: String, required: true },
+  description_en: { type: String, required: true },
+  description_local: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now },
+  dueDate: { type: Date },
+});
+
+const pregnancyTaskSchema = new Schema({
+  id: { type: String, required: true },
+  group_id: { type: String, required: true },
+  startDate: { type: Date, required: true },
+  category: { type: String, required: true },
+  description_en: { type: String, required: true },
+  description_local: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now },
+  dueDate: { type: Date },
+});
+
+const newbornTaskSchema = new Schema({
+  id: { type: String, required: true },
+  group_id: { type: String, required: true },
+  birthDate: { type: Date, required: true },
+  category: { type: String, required: true },
+  description_en: { type: String, required: true },
+  description_local: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now },
+  dueDate: { type: Date },
+});
+
+const commentSchema = new Schema({
+  commentId: { type: String, required: true },
+  senderId: { type: String, ref: "User", required: true },
+  text: { type: String, required: true },
+  imageUrl: { type: String },
+  upvotes: { type: [String], default: [] },
+  downvotes: { type: [String], default: [] },
+  createdAt: { type: Date, default: Date.now },
+});
+
+const questionSchema = new Schema({
+  questionId: { type: String, required: true },
+  senderId: { type: String, required: true },
+  category: { type: String, required: true },
+  description: { type: String, required: true },
+  imageUrl: { type: String },
+  comments: [commentSchema],
+  createdAt: { type: Date, default: Date.now },
+});
+const complaintSchema = new mongoose.Schema({
+  farmerId: { type: String, required: true },
+  phone: { type: String, required: true },
+  description: { type: String, required: true },
+  imageUrl: { type: String },
+  latitude: { type: Number },
+  longitude: { type: Number },
+  createdAt: { type: Date, default: Date.now },
+});
+
+const farmerUser = db.userDB.model("farmer", farmerSchema);
+const governmentOfficialUser = db.userDB.model("official", governmentSchema);
+const veterinarianUser = db.userDB.model("veterinarian", veterinarianSchema);
+const chat = db.userDB.model("chat", conversationSchema);
+const group = db.groupDB.model("group", animalGroupSchema);
+const Summary = db.groupDB.model("summary", summarySchema);
+
+const taskDisease = db.groupDB.model("taskDisease", diseaseTaskSchema);
+const taskNewborn = db.groupDB.model("taskNewborn", newbornTaskSchema);
+const taskPregnancy = db.groupDB.model("taskPregnancy", pregnancyTaskSchema);
+const question = db.groupDB.model("message", questionSchema);
+const complaint = db.userDB.model("complaint", complaintSchema);
+
+export {
+  farmerUser,
+  governmentOfficialUser,
+  veterinarianUser,
+  chat,
+  group,
+  Summary,
+  taskDisease,
+  taskNewborn,
+  taskPregnancy,
+  question,
+  complaint,
+};
+
+please write the best promt man

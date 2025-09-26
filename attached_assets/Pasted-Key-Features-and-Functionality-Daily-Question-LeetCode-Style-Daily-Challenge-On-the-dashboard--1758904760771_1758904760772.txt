@@ -1,0 +1,71 @@
+Key Features and Functionality:
+
+Daily Question (LeetCode-Style Daily Challenge):
+
+On the dashboard top: A single daily MCQ question generated fresh each day (UTC midnight reset) via Gemini, personalized to the farmer's schema.
+If unsolved, show as "Today's Biosecurity Challenge." Mark as done on completion (green check on calendar).
+Streak System: Track consecutive days solved (e.g., "7-day streak!"). Break streak if missed; reward bonus coins for streaks (e.g., +50 coins at 7 days).
+Calendar View: Interactive calendar (like LeetCode's heat map) showing solved days in green, missed in red, current streak badge.
+
+
+Quiz Profile Page:
+
+Personal dashboard showing: Total coins earned, overall score (e.g., accuracy % across quizzes), national rank (India-wide), state rank (filterable, e.g., Karnataka vs. Tamil Nadu).
+Leaderboards: Two tabs - "India Top 100" and "State Top 100" (filter by state dropdown). Ranks based on total coins/score. Anonymous usernames (e.g., "Farmer123"). Update real-time or on refresh.
+Gamification Levels: Based on total coins/score thresholds (e.g., 0-500: Pupil, 501-2000: Specialist, 2001+: Master). Show badge/icon next to profile (e.g., star levels). Unlock perks like custom avatars or premium tips at higher levels.
+
+
+On-Demand Quizzes (Problem Sets):
+
+Button: "Take a Quiz" → Prompt user to select number of questions (1-10 via slider/dropdown).
+Generate via Gemini: Use farmer's schema as input to create MCQs on biosecurity topics. All questions MCQ (4 options, single correct).
+After each answer: Immediate feedback (correct/green, wrong/red) + Explanation (max 50 words, educational, linked to OIE/FAO-style tips, personalized e.g., "For your 50-pig humid farm, isolate to prevent ASF spread.").
+Scoring: +10 points/coins per correct (bonus +5 for first try). Total quiz score updates profile.
+End of Quiz: Summary screen with accuracy %, coins earned, explanations recap, and "Retry" or "Next Quiz" buttons.
+
+
+Gemini AI Integration for Question Generation:
+
+Farmer Schema Example (JSON from DB): {"farm_type": "pig", "animal_count": 50, "location": "Karnataka", "risks": ["humid", "wild boars"]}.
+Prompt Template for Gemini (embed in backend): "Generate [num] MCQ questions on biosecurity for a [farm_type] farm with [animal_count] animals in [location] facing [risks]. Topics: disease prevention, hygiene, compliance. Each question: JSON format {'question': '...', 'options': ['A', 'B', 'C', 'D'], 'correct': 'A', 'explanation': 'Max 50 words: Explain why correct, personalize to farm, add practical tip based on OIE/FAO.'}. Output array only."
+Backend Endpoint: POST /generate-quiz {schema, numQuestions, module?} → Call Gemini API → Return questions array.
+Fallback: Pre-generate 100 static questions if API fails.
+
+
+Gamification Elements:
+
+Points/Coins: Earn on every correct answer; spend on in-app rewards (e.g., unlock advanced modules, virtual farm badges).
+Levels: Pupil (beginner, green icon), Specialist (intermediate, silver), Master (expert, gold). Auto-upgrade on thresholds; notify with confetti animation.
+Streaks & Badges: Daily streak counter; badges for milestones (e.g., "10 Quizzes Mastered"). Social share: "I earned Master level on FarmSecure! #Biosecurity".
+Motivation: Pop-ups like "Solve daily to keep streak alive!" or "Beat your state's top farmer!"
+
+
+Progress Graphs (Cherry on Top):
+
+Dashboard Section: Interactive charts showing progress.
+
+Line Chart: Accuracy % over time (last 30 days).
+Bar Chart: Coins earned per week.
+Pie Chart: Topic mastery (e.g., 80% in ASF, 60% in Hygiene).
+Heat Map: Calendar integration for solved days.
+
+
+Use Chart.js; Make touch-friendly, with tooltips explaining data (e.g., "Your accuracy improved 20% after 5 quizzes!").
+
+
+
+UI/UX Design Guidelines (Best Possible, LeetCode-Inspired but Farmer-Friendly):
+
+Overall Layout: Tabbed navigation like LeetCode: Home (Dashboard with Daily Question on top), Profile (Scores/Ranks), Leaderboards, Quizzes (On-Demand).
+Mobile-First Responsive: Use Tailwind CSS or Material-UI for responsiveness. Large fonts (16px+), high-contrast colors (green for success, red for errors), minimal text, icon-heavy (e.g., pig/poultry icons).
+Color Scheme: Earthy tones (greens/browns for farms), vibrant accents (yellow for coins, blue for levels).
+Components:
+
+Dashboard: Hero section with Daily Question card (question text, options as buttons). Below: Calendar heat map, progress graphs side-by-side on desktop, stacked on mobile.
+Quiz Interface: Clean, one question per screen (swipe/next button). Answer buttons full-width on mobile. Explanation in expandable accordion (default open on wrong).
+Profile: Card with avatar (farm-themed), stats grid (coins, score, rank), level badge. Leaderboards as scrollable table with filters.
+
+
+Animations/Interactivity: Confetti.js for wins, progress bars that fill on score updates. Offline support via Service Workers (cache questions).
+Best Practices: WCAG accessibility (alt text, keyboard nav), fast load (code-split React), A/B test-inspired simplicity (e.g., no clutter—focus on one action per screen).
+Wireframes (Describe in Output): Provide text-based wireframes, e.g., Dashboard: [Top: Daily Card] [Middle: Graphs] [Bottom: Streak Calendar].
