@@ -1,14 +1,35 @@
 import express, { type Request, Response, NextFunction } from "express";
 import http from "http";
+import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import { connectDB } from "./config/database";
 import { apiRoutes } from "./routes/index";
+import { errorHandler, notFound } from "./middleware/errorHandler";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
+
+// Basic middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Middleware for logging
+// Security middleware
+app.use(helmet());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || "http://localhost:5173",
+  credentials: true
+}));
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: "Too many requests from this IP, please try again later."
+});
+app.use("/api", limiter);
+
+// Logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -40,39 +61,37 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  await connectDB();
-  
-  app.use('/api', apiRoutes);
-  
-  const server = http.createServer(app);
+  try {
+    // Connect to database
+    await connectDB();
+    log("✅ Database connected successfully");
+    
+    // Register API routes
+    app.use('/api', apiRoutes);
+    
+    const server = http.createServer(app);
 
-  // Error handler
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+    // Error handlers (must be last)
+    app.use(notFound);
+    app.use(errorHandler);
 
-    res.status(status).json({ message });
-    throw err;
-  });
+    // Setup Vite in dev mode
+    if (app.get("env") === "development") {
+      await setupVite(app, server);
+    } else {
+      serveStatic(app);
+    }
 
-  // Setup Vite in dev mode
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
+    // Start server
+    const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 5000;
+    const host = "localhost";
+
+    server.listen(port, host, () => {
+      log(`🚀 Server running on http://${host}:${port}`);
+    });
+
+  } catch (error) {
+    console.error("❌ Failed to start server:", error);
+    process.exit(1);
   }
-
-  // 🔥 Random host (safe for Windows)
-  const possibleHosts = ["127.0.0.1", "localhost"];
-  const host = possibleHosts[Math.floor(Math.random() * possibleHosts.length)];
-
-  // 🔥 Port: use env PORT or random between 4000–6000
-  const port =
-    process.env.PORT !== undefined
-      ? parseInt(process.env.PORT, 10)
-      : Math.floor(Math.random() * (6000 - 4000 + 1)) + 4000;
-
-  server.listen(port, host, () => {
-    log(`🚀 serving on http://${host}:${port}`);
-  });
 })();
