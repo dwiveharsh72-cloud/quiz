@@ -1,5 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes";
+import http from "http";
+import { connectDB } from "./config/database";
+import { apiRoutes } from "./routes/index";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
@@ -38,7 +40,11 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  const server = await registerRoutes(app);
+  await connectDB();
+  
+  app.use('/api', apiRoutes);
+  
+  const server = http.createServer(app);
 
   // Error handler
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
